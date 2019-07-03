@@ -1,0 +1,157 @@
+#==========================================================================
+# interface program from Midas to FLAC3D (.fpn file to .flac3d file)
+# I had already tested the code,it seem OK! Please check it when you use it.
+# Please tell me if you find any problem in this code or a better way to do this.
+# e-mail address: cawpro@163.com
+#==========================================================================
+#  Read the system time
+import time
+
+localtime = time.asctime( time.localtime(time.time()) )
+
+#==============Input file: Midas ===================Output file : FLAC3D
+
+file_input  = "PH_20180201.fpn"
+file_result = "final_result.flac3d"
+
+#========================================================================
+file_mid    = "mid_result.flac3d"
+
+with open (file_input,"r") as f_r:
+	lines = f_r.readlines()
+	length = len(lines)
+
+with open(file_mid, "w") as f_w:
+    f_w.write("***************************V1.00***************************** " + "\n")
+    f_w.write("****           Midas to FLAC3D with Python 3.7.3         **** " + "\n")
+    f_w.write("****                   Version 1.00                      **** " + "\n")
+    f_w.write("****                 Developed by CAW                    **** " + "\n")
+    f_w.write("****              in  Hangzhou   20190701                **** " + "\n")
+    f_w.write("************************************************************* " + "\n")
+    f_w.write("* " + str(localtime) + "\n")
+    f_w.write("* GRIDPOINTS" +"\n")
+
+#===========================================================================================================
+# Node information,Node is expressed as NODE in Midas and G in FLAC3D
+
+
+    for i in range(length):
+        if "NODE  " in lines[i]:
+            sequence = lines[i].split(",")
+            new_string = "G " + " ".join(sequence[1:5])
+            f_w.write(new_string.rstrip() + "\n")
+
+
+
+#============================================================================================================
+#find the location of Zone in the Midas file, Zs means Start, and Ze means the End
+with open (file_input,"r") as f_r:
+
+    for i in range(length):
+        if "Element" in lines[i]:
+            Zs=i+1
+            print(Zs)
+        if "Geometry" in lines[i]:
+            Ze=i-4
+            print(Ze)
+
+
+#===========================================================================================================
+#Zone infromation
+#Midas HEXA    FLAC3D B8;
+#Midas PRISM   FLAC3D W6;
+#Midas PYRAM   FLAC3D P5;
+#Midas TETRA   FLAC3D T4;
+
+with open(file_mid, "a") as f_w:
+    f_w.write("* ZONES" + "\n")
+
+    for i in range(Zs, Ze, 1):
+        if "HEXA" in lines[i]:
+            two_line = lines[i] + lines[i + 1]
+            hexa = two_line.split(",")
+            list_1 = ["Z B8 ", hexa[1].rstrip(), hexa[3].rstrip(),
+                      hexa[4].rstrip(), hexa[6].rstrip(), hexa[7].rstrip(),
+                      hexa[5].rstrip(), hexa[10].rstrip(),
+                      hexa[8].rstrip(), hexa[9].rstrip()]
+
+        if "PRISM" in lines[i]:
+            prism_line = lines[i]
+            prism = prism_line.split(",")
+            list_1 = ["Z W6 ", prism[1].rstrip(), prism[3].rstrip(),
+                      prism[5].rstrip(), prism[6].rstrip(), prism[4].rstrip(),
+                      prism[8].rstrip(), prism[7].rstrip()]
+
+        if "PYRAM" in lines[i]:
+            pyram_line = lines[i]
+            pyram = pyram_line.split(",")
+            list_1 = ["Z P5 ", pyram[1].rstrip(), pyram[3].rstrip(),
+                      pyram[4].rstrip(), pyram[6].rstrip(), pyram[7].rstrip(),
+                      pyram[5].rstrip()]
+
+        if "TETRA" in lines[i]:
+            tetra_line = lines[i]
+            tetra = tetra_line.split(",")
+            list_1 = ["Z T4 ", tetra[1].rstrip(), tetra[3].rstrip(),
+                      tetra[4].rstrip(), tetra[5].rstrip(), tetra[6].rstrip()]
+
+        string = "".join(list_1)
+        f_w.write(string.strip() + "\n")
+
+#=============================================================================================================
+#Numbers of Group
+Nums_Group=0
+with open (file_input,"r") as f_r:
+    for i in range(length):
+        if "MSETE" in lines[i]:
+            Nums_Group=Nums_Group+1
+            #print(Nums_Group)
+
+#=============================================================================================================
+#Beginning and ending of each group
+Loca1=[]
+Loca2=[]
+
+Loca_Nums=0
+with open (file_input,"r") as f_r:
+
+    for i in range(length):
+          if "MSETE" in lines[i]:
+              Loca1.append(i)
+          if "MSETN" in lines[i]:
+              Loca2.append(i)
+
+#print(Loca1)
+#print(Loca2)
+#==============================================================================================================
+#Output Groups
+
+with open (file_mid,"a") as f_w:
+	f_w.write("* GROUPS" + "\n")
+
+with open (file_mid,"a") as f_w:
+    for j in range (0,Nums_Group-1,1):
+        f_w.write("ZGROUP "+("'%s'"%(j))  +" SLOT 1" + "\n")
+
+        for i in range (Loca1[j+1]+1,Loca2[j+1],1):
+            sequence = lines[i].split(",")
+            new_string = " ".join(sequence[:])
+            f_w.write(new_string)
+
+
+#============================Remove the repetitive zones
+
+lines_seen=set()
+outfile=open(file_result,'w+',encoding='utf-8')
+
+f=open(file_mid,'r',encoding='utf-8')
+
+for line in f:
+    if line not in lines_seen:
+        outfile.write(line)
+        lines_seen.add(line)
+
+#=================================================
+print("===================================")
+print("=====Successful,感谢您的使用!======")
+print("===================================")
